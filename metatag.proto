@@ -1,0 +1,74 @@
+syntax = "proto3";
+enum ValueType
+{
+  Unknown = 0;
+  Integer = 1;
+  Double = 2;
+  Boolean = 3;
+  String = 4;
+  Bytes = 5;
+}
+message CompressSpec
+{
+  bool enable = 1;
+  float value = 2;
+  int64 maxElapse = 3;
+}
+message MetaTag
+{
+  int32 version = 1;
+  string name = 2;
+  string showName = 3;
+  string description = 4;
+  ValueType type = 5;
+  string unit = 6;
+  string range = 7;
+  RtdValue defaultValue = 8;
+  bool storage = 9;
+  CompressSpec compress = 10;
+}
+message MetaTagSequence
+{
+  repeated MetaTag tags = 1;
+}
+
+
+message RtdValue
+{
+  int64 timeStamp = 1;	// UTC毫秒时间戳
+  int64 quality = 2;	// 质量码，0-标识正常值
+  oneof value
+  {
+   int64 intVal = 3;
+   double dblVal = 4;
+   bool boolVal = 5;
+   string strVal = 6;
+   bytes bytVal = 7;
+  }
+}
+message NamedValue
+{
+  string name = 1;	// 位号名称
+  RtdValue value = 2;	// 位号实时值
+}
+message ValueSequence
+{
+  repeated NamedValue values = 1;
+}
+
+
+message RtdEvent
+{
+  string topic = 1;
+  bytes payload = 2;
+}
+message GatewayCoordinate
+{
+  int64 localTimeStamp =1;
+}
+message ServerCoordinate
+{
+  int64 localTimeStamp =1;
+  int64 serverTimeStamp =2;
+}
+
