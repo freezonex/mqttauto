@@ -12,7 +12,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from utlis.plot import TimeSeriesPlot,plot_grouped_time_series
 from utlis.preprocessing import TimeSeriesPreprocessor
 from AutoMachineLearning import TimeSeriesAutoML,GridSearchTuner
-from model.models import LSTMModel,GRUModel
+from model.models import LSTMModel,GRUModel,BaseTCNModel
 from matplotlib.dates import DateFormatter, MonthLocator
 from datetime import datetime, timedelta
 class BaseConfig:
@@ -141,10 +141,10 @@ if __name__ == '__main__':
     #should specify the dimension here
     input_dimension,output_dimension = 1,1
     auto_ml = TimeSeriesAutoML()
-    # if look_back == 1:
-    #     auto_ml.add_model('ARIMA', )
+
     auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
     auto_ml.add_model('GRU',GRUModel(input_dimension,output_dimension))
+    auto_ml.add_model('TCN',BaseTCNModel(input_dimension,output_dimension))
     auto_ml.add_tuner('GridSearch',GridSearchTuner(num_folds=2))
 
     auto_ml.run_experiments(preprocessed_training_data,preprocessed_training_label)
@@ -199,6 +199,6 @@ if __name__ == '__main__':
             ax.legend()
             ax.set_xlabel('Date')
             ax.set_ylabel('Value')
-
+        plt.title(f"{model_name}:{results[model_name]['test_loss']}")
         plt.tight_layout()
         plt.savefig(f'{model_name}test.png')
