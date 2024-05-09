@@ -23,7 +23,8 @@
 # print(binascii.hexlify(serialized_data))
 
 import binascii
-import metatag_pb2
+from mqttauto.mqtt import metatag_pb2
+
 
 def create_serialized_value_sequence(values):
     # Create a ValueSequence

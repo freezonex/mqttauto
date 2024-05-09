@@ -158,6 +158,7 @@ param_grid = {
     'lr': [0.01],
     'batch_size': [ 32],
     'epochs': [20]},
+
     'GRU':
 {
     'hidden_dim': [50],

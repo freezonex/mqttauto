@@ -1,8 +1,7 @@
 import csv
 import paho.mqtt.client as mqtt
-from realdatatransfer import create_serialized_value_sequence
+from mqttauto.mqtt.realdatatransfer import create_serialized_value_sequence
 import time
-import metatag_pb2
 
 # MQTT broker details
 broker_address = "47.236.10.165"
