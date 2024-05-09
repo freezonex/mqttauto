@@ -72,7 +72,7 @@ def fetch_date():
         print(f"Failed to fetch date: {e}")
         return 'No Date'
 
-if __name__ == '__main__':
+def main():
     stop_date = datetime.strptime("2023/11/30", "%Y/%m/%d")
     while True:
         current_date_str = fetch_date()
@@ -97,3 +97,5 @@ if __name__ == '__main__':
         update_previous_values(results_array)
 
         time.sleep(10)
+if __name__ == '__main__':
+    main()
