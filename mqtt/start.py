@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     # Starting threads
     thread1.start()
-    time.sleep(6)
+    time.sleep(3)
     thread2.start()
 
     # Joining threads to ensure they both complete
