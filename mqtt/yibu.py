@@ -44,7 +44,7 @@ def write_to_csv():
     with open(file_path, mode='a', newline='') as file:
         writer = csv.writer(file)
         if not file_exists:
-            writer.writerow(['Warehouse Name', 'Date', 'Storage', 'Next Day Storage'])
+            writer.writerow(['warehouse_name', 'date', 'storage', 'next_day_storage'])
 
         for attribute, data in values_store.items():
             if len(data) > 1:
