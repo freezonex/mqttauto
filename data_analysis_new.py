@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import json
 from sklearn.metrics import mean_squared_error, f1_score,confusion_matrix
 from statsmodels.tsa.stattools import acf
 from abc import ABC, abstractmethod
@@ -163,9 +164,13 @@ if __name__ == '__main__':
     date_range_start = start_date_datetime + pd.DateOffset(days=look_back)
 
     date_range = pd.date_range(start=date_range_start, end=start_test_date, freq='D')
-    result['train']['date_range'] = date_range
+    date_strings = date_range.format(formatter=lambda x: x.strftime('%Y-%m-%d'))
+    result['train']['date_range'] = date_strings
     for i,(name,truth) in enumerate(preprocessed_training_label.items()):
         train_truth = preprocessor.inverse_transform_labels(np.array(truth))
+        train_truth = np.squeeze(train_truth)
+        train_truth = train_truth.tolist()
+        train_truth = [int(i) for i in train_truth]
         num_train = len(train_truth)
         result['train'][name] = {
             'prediction': train_predictions[start_index_train:start_index_train + num_train],
@@ -177,9 +182,9 @@ if __name__ == '__main__':
     start_date_datetime = pd.to_datetime(start_test_date)
     start_test_date = start_date_datetime+pd.DateOffset(days=1)
     date_range = pd.date_range(start=start_test_date, end=end_date, freq='D')
-
+    date_strings = date_range.format(formatter=lambda x: x.strftime('%Y-%m-%d'))
     result['test'] = {name: {'prediction': [], 'truth': []} for name in preprocessed_training_label.keys()}
-    result['test']['date_range'] = date_range
+    result['test']['date_range'] = date_strings
     while cur_date<end_date:
         # read and process again, since new data is coming
         analysis.load_data(path)
@@ -200,14 +205,19 @@ if __name__ == '__main__':
         for i, (name, truth) in enumerate(preprocessed_test_label.items()):
             test_truth = preprocessor.inverse_transform_labels(np.array(truth))
             num_train = len(test_truth)
+            test_truth = np.squeeze(test_truth,axis=-1)
+            test_truth = test_truth.tolist()
+            test_truth = [int(i) for i in test_truth]
+
             result['test'][name]['prediction'].extend(test_result[start_index_test:start_index_test + num_train])
             result['test'][name]['truth'].extend(test_truth)
             start_index_test += num_train
         # Move to the next day
         cur_date += timedelta(days=1)
 
-    print(result)
-
+    filename = 'result.json'
+    with open(filename, 'w') as f:
+        json.dump(result, f, indent=4)
 
 
     # for model_name in train_result.keys():
