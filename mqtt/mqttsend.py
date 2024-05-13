@@ -57,7 +57,7 @@ def main():
                     current_count += 1  # Increment to the next count
                 else:
                     max_count_found = True  # Exit the loop if no data for current count
-            time.sleep(6)  # Wait for 5 seconds before the next publish
+            time.sleep(30)  # Wait for 5 seconds before the next publish
     finally:
         client.loop_stop()  # Stop the loop
         client.disconnect()  # Disconnect from the broker
