@@ -15,45 +15,56 @@ from AutoMachineLearning import TimeSeriesAutoML,GridSearchTuner
 from model.models import LSTMModel,GRUModel,BaseTCNModel
 from matplotlib.dates import DateFormatter, MonthLocator
 from datetime import datetime, timedelta
-
+import torch
+from sklearn.preprocessing import MinMaxScaler
+from torch.utils.data import DataLoader, TensorDataset
+from torch import nn
 class BaseConfig:
-    def __init__(self, task,group_by=None, label=None, excluded_features=None):
+    def __init__(self, path,task,group_by=None, label=None, excluded_features=None):
         self.group_by = group_by
         self.label = label
         self.excluded_features = excluded_features or []
         self.task = task
+        self.dataset_path = path
     def update_excluded_features(self, new_excluded_features):
         self.excluded_features.update(new_excluded_features)
 class TimeSeriesConfig(BaseConfig):
-    def __init__(self, timestamp_column, resample_rule=None, **kwargs):
+    def __init__(self, timestamp_column, resample_rule=None,start=None,start_test=None,end=None,include_label=True, **kwargs):
         super().__init__(**kwargs)
         self.timestamp_column = timestamp_column
         self.resample_rule = resample_rule  # 可选，用于定义重采样规则
+        self.start = start
+        self.start_test = start_test
+        self.end = end
+        self.include_label = include_label
 class DataAnalysisInterface(ABC):
     def __init__(self,config):
         self.config = config
         self.dataframe = None
         self.processed_dataframe = None
 
-    def load_data(self, filepath: str):
+    def load_data(self,path=None):
+        if path is None:
+            filepath = self.config.dataset_path
+        else:
+            filepath = path
         self.dataframe = pd.read_csv(filepath) if filepath.endswith('.csv') else pd.read_excel(filepath)
         self.processed_dataframe = deepcopy(self.dataframe)
         print(f'Loading data from {filepath}')
 
-
     @abstractmethod
     def preprocess_data(self):
-        self.processed_dataframe.dropna(axis=1,how='all',inplace=True)
+        self.processed_dataframe.dropna(axis=1, how='all', inplace=True)
 
         if self.config.excluded_features:
-            self.processed_dataframe.drop(columns=self.config.excluded_features,inplace=True,errors='ignore')
+            self.processed_dataframe.drop(columns=self.config.excluded_features, inplace=True, errors='ignore')
 
     @abstractmethod
     def analyze_data(self):
         """Perform data analysis."""
         pass
 
-    def update_config(self,new_excluded_features):
+    def update_config(self, new_excluded_features):
         self.config.update_excluded_features(new_excluded_features)
         print("Config updated with new excluded features:", self.config.excluded_features)
         self.preprocess_data()  # 重新预处理数据
@@ -97,13 +108,17 @@ class TimeSeriesAnalysis(DataAnalysisInterface):
         analyzer = TimeSeriesPlot(self.config, self.processed_dataframe)
         analyzer.analyze_data()
 
+
 if __name__ == '__main__':
-    path = 'static/data/warehouse/train_data.csv'
     time_series_config = TimeSeriesConfig(
         task = 'warehouse',
         timestamp_column='date',
         label='next_day_storage',
-        group_by='warehouse_name'
+        group_by='warehouse_name',
+        start='2023-08-01',
+        start_test='2023-11-07',
+        end='2023-11-30',
+        path='data/train_data.csv'
     )
     # time_series_config = TimeSeriesConfig(
     #     task = 'nasa',
@@ -112,18 +127,17 @@ if __name__ == '__main__':
     #     group_by='engine_no',
     #     excluded_features=['op_setting_3','sensor_16','sensor_19'],
     # )
-    start_date = '2023-08-01'
-    start_test_date = '2023-11-07'
+    start_date = time_series_config.start
+    start_test_date = time_series_config.start_test
+    end_date = time_series_config.end
 
-    cur_date = datetime.strptime(start_test_date, '%Y-%m-%d')
-    end_date = '2023-11-30'
-    end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
 
     analysis = TimeSeriesAnalysis(time_series_config)
-    analysis.load_data(path)
+    analysis.load_data()
     analysis.preprocess_data()
     print(analysis.processed_dataframe.head())
-    analysis.analyze_data()
+    # analysis.analyze_data()
 
     # look back set up, look back = 1 can use auto regression task, e.g. arima
     # look back>1 use rnn based method
@@ -138,17 +152,26 @@ if __name__ == '__main__':
     preprocessed_training_data, preprocessed_training_label = preprocessor.transform(data)
 
     # should specify the dimension here
-    input_dimension, output_dimension = 1, predict_time_stamp
-    auto_ml = TimeSeriesAutoML()
+    input_dimension, output_dimension = preprocessor.num_features, predict_time_stamp
 
-    # auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
-    auto_ml.add_model('GRU', GRUModel(input_dimension, output_dimension))
+
+
+
+
+
+
+
+
+    auto_ml = TimeSeriesAutoML(time_series_config)
+
+    auto_ml.add_model('LSTM',LSTMModel(input_dimension,output_dimension))
+    # auto_ml.add_model('GRU', GRUModel(input_dimension, output_dimension))
     # auto_ml.add_model('TCN',BaseTCNModel(input_dimension,output_dimension))
     auto_ml.add_tuner('GridSearch', GridSearchTuner(num_folds=2))
 
     auto_ml.run_experiments(preprocessed_training_data, preprocessed_training_label)
     train_result = auto_ml.train_result
-    train_predictions = train_result['GRU']['train_prediction']
+    train_predictions = train_result['LSTM']['train_prediction']
     train_predictions = preprocessor.inverse_transform_labels(train_predictions)
     train_predictions = [int(i) for i in train_predictions]
     n_groups = len(preprocessed_training_label)
@@ -185,9 +208,15 @@ if __name__ == '__main__':
     date_strings = date_range.format(formatter=lambda x: x.strftime('%Y-%m-%d'))
     result['test'] = {name: {'prediction': [], 'truth': []} for name in preprocessed_training_label.keys()}
     result['test']['date_range'] = date_strings
+    # 将 Timestamp 对象转换为字符串以便使用 strptime
+    start_test_date_str = start_test_date.strftime('%Y-%m-%d')
+    cur_date = datetime.strptime(start_test_date_str, '%Y-%m-%d')
+    end_date = datetime.strptime(end_date, '%Y-%m-%d')
+
+
     while cur_date<end_date:
         # read and process again, since new data is coming
-        analysis.load_data(path)
+        analysis.load_data()
         analysis.preprocess_data()
 
         cur_start_test_date = cur_date + timedelta(days=1) - timedelta(days=look_back)
@@ -197,7 +226,7 @@ if __name__ == '__main__':
         test_data = analysis.get_partial_data(cur_start_test_date, cur_end_test_date)
         preprocessed_test_data, preprocessed_test_label = preprocessor.transform(test_data)
         auto_ml.evaluate(preprocessed_test_data, preprocessed_test_label)
-        test_result = auto_ml.test_result['GRU']['test_prediction']
+        test_result = auto_ml.test_result['LSTM']['test_prediction']
 
         test_result = preprocessor.inverse_transform_labels(test_result)
         test_result = [int(i) for i in test_result]
@@ -214,8 +243,8 @@ if __name__ == '__main__':
             start_index_test += num_train
         # Move to the next day
         cur_date += timedelta(days=1)
-
-    filename = 'result.json'
+    os.makedirs(f'static/results/{time_series_config.task}', exist_ok=True)
+    filename = f'static/results/{time_series_config.task}/predictions for {time_series_config.task}.json'
     with open(filename, 'w') as f:
         json.dump(result, f, indent=4)
 
