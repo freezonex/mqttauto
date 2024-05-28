@@ -118,7 +118,7 @@ if __name__ == '__main__':
         start='2023-08-01',
         start_test='2023-11-07',
         end='2023-11-30',
-        path='data/train_data.csv'
+        path='train_data.csv'
     )
     # time_series_config = TimeSeriesConfig(
     #     task = 'nasa',
